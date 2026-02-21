@@ -3,7 +3,11 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 
 def prepare_features(data):
-    data['date'] = pd.to_datetime(data['date'])
+    # Safe datetime conversion
+    data['date'] = pd.to_datetime(data['date'], errors='coerce')  # Invalid dates become NaT
+    
+    # Drop rows with invalid/missing dates
+    data = data.dropna(subset=['date'])
     
     # Time-based features
     data['day'] = data['date'].dt.day
@@ -13,6 +17,7 @@ def prepare_features(data):
     # Rolling average (last 7 days demand)
     data['rolling_avg_7'] = data['units_sold'].rolling(window=7).mean()
     
+    # Drop rows with NaN from rolling avg
     data = data.dropna()
     
     return data
@@ -41,11 +46,11 @@ def forecast_next_days(model, data, days=7):
         future_date = last_date + pd.Timedelta(days=i)
         
         features = pd.DataFrame({
-    'day': [future_date.day],
-    'month': [future_date.month],
-    'weekday': [future_date.weekday()],
-    'rolling_avg_7': [rolling_avg]
-})
+            'day': [future_date.day],
+            'month': [future_date.month],
+            'weekday': [future_date.weekday()],
+            'rolling_avg_7': [rolling_avg]
+        })
         
         pred = model.predict(features)[0]
         predictions.append(pred)
